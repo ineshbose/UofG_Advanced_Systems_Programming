@@ -1,0 +1,285 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+\usepackage[cm]{fullpage}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{newtxtext}
+\usepackage{newtxmath}
+\usepackage{tikz}
+\usetikzlibrary{matrix,backgrounds,positioning}
+\usepackage{listings, listings-rust, listings-js}
+
+\definecolor{bluekeywords}{rgb}{0.13, 0.19, 0.7}
+\definecolor{greencomments}{rgb}{0.1, 0.5, 0.2}
+\definecolor{redstrings}{rgb}{0.8, 0.15, 0.1}
+\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
+\definecolor{subtlegray}{rgb}{0.95, 0.95, 0.95}
+\lstset{
+    % autogobble,
+    columns=fullflexible,
+    showspaces=false,
+    showtabs=false,
+    showlines=true,
+    % breaklines=true,
+    aboveskip={20pt},
+    belowskip={10pt},
+    showstringspaces=false,
+    breakatwhitespace=true,
+    escapeinside={(*@}{@*)},
+    backgroundcolor=\color{subtlegray},
+    commentstyle=\color{greencomments},
+    keywordstyle=\color{bluekeywords},
+    stringstyle=\color{redstrings},
+    numberstyle=\color{graynumbers},
+    basicstyle=\ttfamily\linespread{1.15}\small,
+    frame=single,
+    framesep=8pt,
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    tabsize=4,
+    captionpos=b
+}
+
+\begin{document}
+
+\title{Advanced Systems Programming (H)\\Exercise 1 -- Memory Management}
+\author{}
+
+\date{}
+
+\maketitle
+
+\section*{Part 1}\label{sec:part1}
+
+Rust guarantees memory-safety using type declaration and the concept of ownership in the approach of its memory management \cite{WhatisOw63,klabnik2019rust}. The memory is only owned to one region \& variable - there cannot be multiple owners, and this allows performant programs without garbage memory, memory leak, and large complexities. When a variable is created in Rust, the memory for the value, based on the datatype, is allocated on the stack (by default; heap discussed later); the variable holds ownership to the memory and there can only be one owner at a time.
+
+\begin{lstlisting}[language=Rust,caption={Variable declaration \& usage example in Rust}]
+fn main() {
+    let x = Box::new(5); // x holds ownership
+    // printed: The value of x is: 5
+    println!("The value of x is: {x}");
+
+    let y = x; // y holds ownership
+    // printed: The value of y is: 5
+    println!("The value of y is: {y}");
+
+    // ERROR! x no longer holds ownership
+    println!("The value of x is: {x}");
+    // Rust won't compile in the first place!
+}
+\end{lstlisting}
+
+Ownership can be borrowed by referencing or pointing to the area in memory. For example, when the variable is passed to a function that doesn't take parameters by reference nor return the value (for assignment), the memory is freed and ownership is lost. Moreover, variables are immutable by default, so their value cannot be modified after creation; this can be enabled by using \texttt{mut} in declaration. There can be multiple immutable pointers (\texttt{\&}) to a value in the stack memory but only one mutable pointer (\texttt{\&mut}) which restricts any other pointers.
+
+The aim, sometimes, could be to expand the lifetime of a variable and use manual memory management in Rust since the data is allocated on the stack by default, and it may have limited applicability. Therefore, it can extended to manage the heap using manual memory management so that values would be stored on the stack \textbf{holding a reference to data allocated on the heap}. Inspired by Cyclone \cite{Influenc17,CycloneI74,10.1145/512529.512563,10.1145/1029873.1029883}, Rust uses \texttt{Box<T>} for this; the value created using \texttt{Box::new()} is guaranteed to be initialised with the memory matching the size of the type, and when the variables go out of scope \& the lifetime ends, the destructor is called and the memory is deallocated.
+
+\begin{lstlisting}[language=Rust,caption={Pointers example in Rust}]
+fn main() {
+    let mut x = Box::new(5); // x holds ownership
+    // printed: The value of x is: 5
+    println!("The value of x is: {x}");
+
+    x = x + 2; // allowed
+    let y = &x; // y points to x
+    let z = &x; // z points to x
+    // printed: The value of y, z is: 7, 7
+    println!("The value of y, z is: {y}, {z}");
+
+    // Works fine
+    println!("The value of x is: {x}");
+
+    // ERROR! y, z are pointers
+    let mut_ptr = &mut x;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=Rust,caption={Generating, borrowing \& consuming examples}]
+fn create_int() -> i32 {
+    5
+}
+fn borrow_int(val: &i32) {
+    println!("The value is: {val}");
+}
+fn consume_int(val: i32) {
+    println!("The value is: {val}");
+}
+
+fn main() {
+    let x = create_int();
+    // printed: The value of x is: 5
+    println!("The value of x is: {x}");
+
+    borrow_int(&x); // printed: The value is: 5
+    // printed: The value of x is: 5
+    println!("The value of x is: {x}");
+
+    consume_int(x); // printed: The value is: 5
+    // ERROR! memory has been freed
+    println!("The value of x is: {x}");
+}
+\end{lstlisting}
+
+\section*{Part 2}\label{sec:part2}
+
+Compared to the C programming language, Rust is modern, strongly-typed and memory-safe. Majority of operating systems have been programmed in C due to the portability and performance \textit{at the time} while Rust, released relatively recently, has been gaining popularity, like being used in latest implementations of Linux \cite{Linux61O57}. The following are reasons why Rust is preferable over C for programming systems.
+
+\subsection*{Programmer Effort}
+
+The ease of implementation plays a huge part in any computer language to be adopted - especially when the developer experience is good; for example Python has become one of the most popular languages \cite{srinath2017python}. Compared to C, a lot of implementation needs to be done manually, including memory management using \texttt{malloc} and \texttt{free} and this is error-prone like having segmentation faults and security vulnerabilities that are difficult to debug. Rust guarantees automatic, safe and efficient memory management with a strong-typed system (that requires effort to define types but is outweighed by safety benefits discussed in \nameref{subsec:safety}) ensuring that programs with run-time errors and vulnerabilities do not make it past compilation.
+
+\subsection*{Runtime Efficiency}\label{subsec:runtime}
+
+Moore's Law \cite{moore1998cramming} has reached its limits and does not apply effectively anymore \cite{10.1007/978-3-642-18206-8_9,4785858,waldrop2016chips,6186749,Tuomi_2002}, so concurrency related problems, like those in C, become more severe. As discussed in \nameref{sec:part1}, with automatic memory management and a modern type system in addition to bounds checking that C lacks, Rust addresses most of the problems but also improves support for \textit{fearless} concurrency by avoiding shared mutable states along with requiring single ownership of data. Eliminating the use of garbage collection (more discussed in \nameref{sec:part3}), it does not have a performance-complexity trade-off like many languages. All optimisations occur at compile time so there are zero costs at runtime. Additionally, Rust, along with being object-oriented, allows functional programming techniques meaning that it is thread-safe with no side effects and easy to test \& debug.
+
+\subsection*{Safety \& Flexibility}\label{subsec:safety}
+
+Type theory was not advanced in 1970 when C was developed, while the modern type system of Rust ensures programs are written safely encouraging type-driven development which means that developers declare the type declaration for the models that the program is expected to interact with and handle all cases accordingly, like ensuring that Celsius and Fahrenheit are not integers and are not added to each other without conversion, or \texttt{Option<T>} values handle the \texttt{null} case. TypeScript extends JavaScript to a similar approach to ensure safety and hence has been successful since its release and taking preference over JavaScript \cite{10.1007/978-3-662-44202-9_11,TypeScri74}. Moreover, Rust's memory management can be configured using standard library types like \texttt{Rc<T>} and \texttt{Box<T>} to allow manual memory allocation and lifetimes while the compiler still ensures deallocation of memory. Optionally Rust has an "unsafe" mode giving developers total control but equal responsibility for the correctness of the code.
+
+\begin{figure}[h]
+    \centering
+    \noindent\begin{subfigure}{.24\textwidth}
+    \centering
+    \begin{lstlisting}[language=C,caption={C}]
+int main(){
+  int *x = malloc(
+    sizeof(int)
+  ); *x = 5;
+  printf(
+    "The value of",
+    " x is: %d\n", *x
+  );
+  free(x); return 0;
+}
+    \end{lstlisting}
+    \end{subfigure}\hfill
+    \begin{subfigure}{.24\textwidth}
+    \centering
+    \begin{lstlisting}[language=Rust,caption={Rust}]
+
+fn main() {
+  let x = Box::new(5);
+
+  println!(
+    "The value of",
+    " x is: {x}"
+  );
+}
+
+    \end{lstlisting}
+    \end{subfigure}
+    \caption{Memory management examples\\\vspace{1cm}}
+\end{figure}
+
+\begin{lstlisting}[language=C,caption={Type system in C}]
+struct Rectangle {
+  int width;
+  int height;
+};
+
+int area(struct Rectangle rectangle) {
+  return rectangle.width * rectangle.height;
+}
+
+int main() {
+  struct Rectangle rect = {30, 50};
+  printf("Area is %d\n", area(rect));
+  return 0;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=TypeScript,caption={Type system in TypeScript}]
+type Rectangle = {
+  width: number;
+  height: number;
+};
+
+function area(rectangle: Rectangle): number {
+  return (rectangle.width * rectangle.height);
+}
+
+let rect = <Rectangle>{
+  width: 30, height: 50
+};
+console.log(`Area is ${area(rect)}`);
+\end{lstlisting}
+
+\newpage
+
+\begin{lstlisting}[language=Rust,caption={Type system in Rust}]
+struct Rectangle {
+  width: u32,
+  height: u32
+}
+
+fn area(rectangle: Rectangle) -> u32 {
+  rectangle.width * rectangle.height
+}
+
+fn main() {
+  let rect = Rectangle {
+    width: 30, height: 50
+  };
+  println!("Area is {}", area(rect));
+}
+\end{lstlisting}
+
+\section*{Part 3}\label{sec:part3}
+
+Tracking memory through variable lifetimes has relatively low overhead yielding safe \& predictable timing at no run-time cost while accepting some impact on the application design. The regions can be seen as a zone, scope or memory context. When the variable goes out of scope, the lifetime ends and the destructor that frees the memory in the heap is called. For this approach to be effective, tracking ownership of objects is important.
+
+However, another form of automatic reclaiming memory that is no longer referenced is called garbage collection, and it avoids complexity problems of reference counting and ownership tracking so it is simpler for the programmer, but it has a performance-complexity trade-off since it is used in run-time and is less predictable. There are many tracing garbage collection algorithms and they are widely used in many programming \& scripting languages such as Python, Java and C\#.
+
+On the contrary, ownership tracking (as also discussed in \nameref{sec:part1} and \nameref{subsec:runtime}) is done compile-time while imposing developers to handle the complexities; it is efficient and easier to predict \& debug, but this makes certain data structures, such as doubly linked lists, that rely on shared ownership or mutable aliasing to be difficult to implement in Rust.
+
+\begin{lstlisting}[language=Rust,caption={Ownership tracking in Rust}]
+fn add_one(mut a : &mut Vec<u32>) {
+     a.push(1);
+}
+
+fn consume_vec(a: Vec<u32>) {
+    println!("Length: {}", a.len());
+}
+
+fn main() {
+    let mut v = Vec::new();
+    v.push(1);
+    v.push(2);
+    add_one(&mut v);
+
+    // printed: Length: 3
+    consume_vec(v);
+
+    // ERROR! memory freed, ownership lost
+    println!("Length: {}", v.len());
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python,caption={Garbage collection in Python}]
+from typing import List
+
+def add_one(a: List[int]) -> None:
+    a.append(1)
+
+def consume_vec(a: List[int]) -> None:
+    print(f"Length: {len(a)}")
+
+if __name__ == '__main__':
+    v: List[int] = []
+    v.append(1)
+    v.append(2)
+    add_one(v)
+
+    // printed: Length: 3
+    consume_vec(v)
+
+    // printed: Length: 3
+    print(f"Length: {len(v)}")
+\end{lstlisting}
+
+While garbage collection based, scripting languages may be easier to write, they do not offer the speed and safety that Rust guarantees, and these decisions are crucial in programming applications that deal with low-level system infrastructure \& components where performance \& efficiency is fundamental.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
